@@ -18,6 +18,8 @@ const TrackPartsScreen: React.FC<Props> = ({ currentUser, parts, addLog, onNavig
   const [physicalQty, setPhysicalQty] = useState('');
   const [newLocation, setNewLocation] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [tokenInput, setTokenInput] = useState('');
 
   // Instant lookup as user types
   useEffect(() => {
@@ -91,6 +93,22 @@ const TrackPartsScreen: React.FC<Props> = ({ currentUser, parts, addLog, onNavig
     reader.readAsBinaryString(file);
   };
 
+  const handleTokenImport = () => {
+    try {
+      const decoded = JSON.parse(atob(tokenInput));
+      if (decoded.parts && Array.isArray(decoded.parts)) {
+        updateParts(decoded.parts, decoded.time || new Date().toLocaleString());
+        alert("DATABASE SYNCED SUCCESSFULLY!");
+        setTokenInput('');
+        setShowImport(false);
+      } else {
+        alert("Invalid Sync Token.");
+      }
+    } catch (e) {
+      alert("Token Corrupted or Invalid.");
+    }
+  };
+
   const handleSave = () => {
     if (!foundPart) return;
 
@@ -123,14 +141,40 @@ const TrackPartsScreen: React.FC<Props> = ({ currentUser, parts, addLog, onNavig
              <p className="text-[10px] text-coffee-600 font-black uppercase tracking-[0.2em]">Instant Enterprise Discovery</p>
           </div>
         </div>
-        <div className="relative">
-          <input type="file" accept=".xlsx,.xls" id="user-sync" className="hidden" onChange={handleFileUpload} disabled={isUploading} />
-          <label htmlFor="user-sync" className="flex items-center gap-2 px-4 py-2.5 bg-coffee-100 text-coffee-700 rounded-2xl text-[9px] font-black uppercase tracking-widest cursor-pointer shadow-sm active:scale-95 transition-all">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-            {isUploading ? 'Syncing...' : 'Sync Data'}
-          </label>
+        <div className="flex flex-col items-end gap-2">
+          <div className="relative">
+            <input type="file" accept=".xlsx,.xls" id="user-sync" className="hidden" onChange={handleFileUpload} disabled={isUploading} />
+            <label htmlFor="user-sync" className="flex items-center gap-2 px-4 py-2.5 bg-coffee-100 text-coffee-700 rounded-2xl text-[9px] font-black uppercase tracking-widest cursor-pointer shadow-sm active:scale-95 transition-all">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              {isUploading ? 'Syncing...' : 'Sync Data'}
+            </label>
+          </div>
+          <button 
+            onClick={() => setShowImport(!showImport)}
+            className="text-[8px] font-black uppercase tracking-widest text-coffee-400 bg-white/50 px-3 py-1 rounded-full border border-coffee-100"
+          >
+            {showImport ? 'Hide Import' : 'Import Shared Token'}
+          </button>
         </div>
       </div>
+
+      {showImport && (
+        <div className="animate-in slide-in-from-top-4 duration-500 premium-card p-8 rounded-[2.5rem] border-coffee-200 bg-coffee-50 space-y-5">
+           <p className="text-[10px] font-black text-coffee-500 uppercase tracking-widest">Master Database Import</p>
+           <textarea 
+             className="w-full h-24 p-5 rounded-3xl bg-white border border-coffee-100 outline-none text-[10px] font-mono focus:border-coffee-400 transition-all"
+             placeholder="Paste the shared sync token here..."
+             value={tokenInput}
+             onChange={e => setTokenInput(e.target.value)}
+           />
+           <button 
+             onClick={handleTokenImport}
+             className="w-full grad-royal text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg"
+           >
+             Sync Shared Database
+           </button>
+        </div>
+      )}
 
       <div className="relative group">
         <div className="absolute -inset-1 grad-primary rounded-[2.8rem] blur-md opacity-10 group-hover:opacity-20 transition-all duration-700"></div>

@@ -42,7 +42,6 @@
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
             background-color: #FFFFFF;
-            /* Lighter, more luminous background */
             background-image: 
                 radial-gradient(at 100% 0%, #FFFCF5 0, transparent 40%),
                 radial-gradient(at 0% 100%, #FAF8F2 0, transparent 40%);
@@ -76,17 +75,6 @@
             box-shadow: 0 0 40px rgba(127, 85, 57, 0.05);
         }
 
-        .floating-button {
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        .floating-button:active {
-            transform: scale(0.94);
-        }
-
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #E8D5C4; border-radius: 10px; }
-
         @media print {
             .no-print { display: none !important; }
         }
@@ -106,5 +94,6 @@
 </head>
 <body class="antialiased">
     <div id="root"></div>
+    <script type="module" src="./index.tsx"></script>
 </body>
 </html>

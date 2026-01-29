@@ -15,6 +15,7 @@ const AdminPanelScreen: React.FC<Props> = ({ state, updateParts, updateUsers, on
   const [newUserId, setNewUserId] = useState('');
   const [newUserPass, setNewUserPass] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [syncToken, setSyncToken] = useState('');
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -66,6 +67,24 @@ const AdminPanelScreen: React.FC<Props> = ({ state, updateParts, updateUsers, on
     reader.readAsBinaryString(file);
   };
 
+  const generateSyncToken = () => {
+    if (state.parts.length === 0) {
+      alert("Database is empty. Upload a file first.");
+      return;
+    }
+    const token = btoa(JSON.stringify({ 
+      parts: state.parts, 
+      time: state.lastUploadInfo,
+      users: state.users 
+    }));
+    setSyncToken(token);
+  };
+
+  const copyToken = () => {
+    navigator.clipboard.writeText(syncToken);
+    alert("Token copied! Share this with users to sync their devices.");
+  };
+
   return (
     <div className="p-6 space-y-12 animate-in fade-in duration-800 pb-24">
       <div className="space-y-2">
@@ -75,6 +94,40 @@ const AdminPanelScreen: React.FC<Props> = ({ state, updateParts, updateUsers, on
            <p className="text-[10px] text-coffee-600 font-black uppercase tracking-[0.25em]">Executive System Control</p>
         </div>
       </div>
+
+      {/* Sync Token Terminal */}
+      <section className="space-y-5">
+        <h3 className="text-[10px] font-black text-coffee-400 uppercase tracking-widest ml-5">Global Redistribution</h3>
+        <div className="premium-card p-10 rounded-[3.5rem] space-y-8 border border-coffee-50 bg-coffee-900 text-white shadow-2xl relative overflow-hidden">
+           <div className="absolute -bottom-10 -left-10 w-40 h-40 grad-primary opacity-20 rounded-full blur-3xl"></div>
+           <div className="relative z-10">
+              <p className="text-xl font-black mb-2">Sync Protocol</p>
+              <p className="text-[10px] text-coffee-300 font-bold uppercase tracking-widest leading-relaxed">Share this terminal's state with other users across different locations.</p>
+           </div>
+           
+           {!syncToken ? (
+             <button 
+               onClick={generateSyncToken}
+               className="w-full py-6 bg-white/10 hover:bg-white/20 border border-white/20 rounded-[2rem] font-black text-[10px] uppercase tracking-widest transition-all"
+             >
+               Generate Sync Token
+             </button>
+           ) : (
+             <div className="space-y-4 animate-in slide-in-from-top-4">
+                <div className="bg-black/40 p-5 rounded-3xl border border-white/10 break-all h-24 overflow-y-auto text-[8px] font-mono opacity-50">
+                  {syncToken}
+                </div>
+                <button 
+                  onClick={copyToken}
+                  className="w-full py-6 grad-warm text-white rounded-[2rem] font-black text-[10px] uppercase tracking-widest shadow-xl"
+                >
+                  Copy & Share Database
+                </button>
+                <button onClick={() => setSyncToken('')} className="w-full text-[8px] font-black text-coffee-400 uppercase tracking-widest">Reset Token</button>
+             </div>
+           )}
+        </div>
+      </section>
 
       <section className="space-y-5">
         <h3 className="text-[10px] font-black text-coffee-400 uppercase tracking-widest ml-5">Inventory Orchestration</h3>
