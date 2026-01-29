@@ -54,18 +54,23 @@ const App: React.FC = () => {
     });
   }, []);
 
-  const addManualEntry = useCallback((entry: Omit<ManualEntry, 'id'>) => {
-    const newEntry: ManualEntry = { ...entry, id: Math.random().toString(36).substr(2, 9) };
+  const updateParts = useCallback((parts: Part[], uploadTime: string) => {
     setState(prev => {
-      const newState = { ...prev, manualEntries: [newEntry, ...prev.manualEntries] };
+      const newState = { ...prev, parts, lastUploadInfo: uploadTime };
       saveState(newState);
       return newState;
     });
   }, []);
 
-  const updateParts = useCallback((parts: Part[], uploadTime: string) => {
+  const importSyncData = useCallback((data: { parts?: Part[], users?: User[], logs?: AuditLog[], time?: string }) => {
     setState(prev => {
-      const newState = { ...prev, parts, lastUploadInfo: uploadTime };
+      const newState = { 
+        ...prev, 
+        parts: data.parts || prev.parts,
+        users: data.users || prev.users,
+        logs: data.logs ? [...data.logs, ...prev.logs] : prev.logs,
+        lastUploadInfo: data.time || prev.lastUploadInfo
+      };
       saveState(newState);
       return newState;
     });
@@ -100,11 +105,7 @@ const App: React.FC = () => {
   }, []);
 
   const navigateToManual = (partNumber?: string) => {
-    if (partNumber) {
-      setPrefilledPartNumber(partNumber);
-    } else {
-        setPrefilledPartNumber('');
-    }
+    setPrefilledPartNumber(partNumber || '');
     setCurrentScreen('manual');
   };
 
@@ -120,33 +121,37 @@ const App: React.FC = () => {
             addLog={addLog} 
             onNavigateManual={navigateToManual} 
             updateParts={updateParts}
+            importSyncData={importSyncData}
           />
         );
       case 'reports':
-        return <ReportsScreen logs={state.logs} parts={state.parts} />;
+        return <ReportsScreen logs={state.logs} parts={state.parts} currentUser={state.currentUser!} />;
       case 'manual':
         return (
           <ManualEntryScreen 
             currentUser={state.currentUser!} 
             manualEntries={state.manualEntries} 
-            addManualEntry={addManualEntry} 
+            addManualEntry={(e) => {
+               const newEntry = { ...e, id: Math.random().toString(36).substr(2, 9) };
+               setState(prev => {
+                 const ns = { ...prev, manualEntries: [newEntry, ...prev.manualEntries] };
+                 saveState(ns);
+                 return ns;
+               });
+            }} 
             initialPartNumber={prefilledPartNumber}
             onClearPrefill={() => setPrefilledPartNumber('')}
           />
         );
       case 'profile':
-        return (
-          <ProfileScreen 
-            user={state.currentUser!} 
-            onUpdateProfile={updateProfile}
-          />
-        );
+        return <ProfileScreen user={state.currentUser!} onUpdateProfile={updateProfile} />;
       case 'admin':
         return state.currentUser?.role === UserRole.ADMIN ? (
           <AdminPanelScreen 
             state={state} 
             updateParts={updateParts} 
             updateUsers={updateUsers}
+            importSyncData={importSyncData}
             onClearLogs={() => {
               setState(prev => {
                 const newState = { ...prev, logs: [], manualEntries: [] };
@@ -163,16 +168,12 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-transparent flex flex-col max-w-md mx-auto shadow-[0_0_150px_rgba(0,0,0,0.05)] relative overflow-hidden ring-1 ring-coffee-100/50">
-      {/* Premium Header - Only show when logged in */}
       {state.currentUser && (
-        <header className="bg-white/90 backdrop-blur-3xl px-6 pt-12 pb-6 border-b border-coffee-100/50 sticky top-0 z-50 no-print transition-all duration-500">
+        <header className="bg-white/90 backdrop-blur-3xl px-6 pt-12 pb-6 border-b border-coffee-100/50 sticky top-0 z-50 no-print">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
-               <div className="w-10 h-10 grad-primary rounded-xl flex items-center justify-center text-white shadow-lg shadow-coffee-200/50 transition-transform hover:scale-105">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                   <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                   <circle cx="12" cy="10" r="3"></circle>
-                 </svg>
+               <div className="w-10 h-10 grad-primary rounded-xl flex items-center justify-center text-white shadow-lg">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
                </div>
                <h1 className="text-lg font-black text-coffee-800 tracking-tighter">Tracker</h1>
             </div>
@@ -181,7 +182,7 @@ const App: React.FC = () => {
                 <p className="text-[10px] font-black uppercase text-coffee-500 tracking-widest">{state.currentUser.role}</p>
                 <p className="text-sm font-bold text-coffee-900 leading-none mt-0.5">{state.currentUser.name}</p>
               </div>
-              <button onClick={handleLogout} className="p-2.5 bg-coffee-100/50 text-coffee-600 rounded-xl hover:bg-coffee-600 hover:text-white transition-all shadow-sm">
+              <button onClick={handleLogout} className="p-2.5 bg-coffee-100/50 text-coffee-600 rounded-xl hover:bg-coffee-600 hover:text-white transition-all">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
               </button>
             </div>
@@ -189,20 +190,18 @@ const App: React.FC = () => {
         </header>
       )}
 
-      {/* Main Content Area */}
       <main className={`flex-1 overflow-y-auto ${state.currentUser ? 'pb-36' : ''}`}>
         {renderScreen()}
       </main>
 
-      {/* Coffee Theme Navigation Bar */}
       {state.currentUser && (
-        <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-[340px] glass-nav rounded-[2.8rem] p-2 flex justify-between items-center no-print shadow-[0_25px_60px_rgba(61,32,9,0.15)] ring-1 ring-white/60">
-          <NavItem active={currentScreen === 'track'} label="Track" onClick={() => setCurrentScreen('track')} icon={<SearchIcon />} color="coffee" />
-          <NavItem active={currentScreen === 'reports'} label="Reports" onClick={() => setCurrentScreen('reports')} icon={<FileTextIcon />} color="coffee" />
-          <NavItem active={currentScreen === 'manual'} label="Add" onClick={() => navigateToManual()} icon={<PlusIcon />} color="coffee" />
-          <NavItem active={currentScreen === 'profile'} label="Profile" onClick={() => setCurrentScreen('profile')} icon={<UserIcon />} color="coffee" />
+        <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-[340px] glass-nav rounded-[2.8rem] p-2 flex justify-between items-center no-print shadow-2xl ring-1 ring-white/60">
+          <NavItem active={currentScreen === 'track'} label="Track" onClick={() => setCurrentScreen('track')} icon={<SearchIcon />} />
+          <NavItem active={currentScreen === 'reports'} label="Reports" onClick={() => setCurrentScreen('reports')} icon={<FileTextIcon />} />
+          <NavItem active={currentScreen === 'manual'} label="Add" onClick={() => navigateToManual()} icon={<PlusIcon />} />
+          <NavItem active={currentScreen === 'profile'} label="Profile" onClick={() => setCurrentScreen('profile')} icon={<UserIcon />} />
           {state.currentUser.role === UserRole.ADMIN && (
-            <NavItem active={currentScreen === 'admin'} label="Manage" onClick={() => setCurrentScreen('admin')} icon={<SettingsIcon />} color="coffee" />
+            <NavItem active={currentScreen === 'admin'} label="Manage" onClick={() => setCurrentScreen('admin')} icon={<SettingsIcon />} />
           )}
         </nav>
       )}
@@ -210,14 +209,9 @@ const App: React.FC = () => {
   );
 };
 
-const NavItem: React.FC<{ active: boolean, label: string, onClick: () => void, icon: React.ReactNode, color: string }> = ({ active, label, onClick, icon, color }) => (
-  <button 
-    onClick={onClick} 
-    className={`flex-1 flex flex-col items-center gap-1 transition-all duration-300 py-3.5 rounded-[2.2rem] ${active ? `text-${color}-800 bg-${color}-100/50 shadow-inner` : 'text-coffee-300 opacity-70 hover:opacity-100'}`}
-  >
-    <div className={`transition-transform duration-300 ${active ? 'scale-110' : 'scale-100'}`}>
-      {icon}
-    </div>
+const NavItem: React.FC<{ active: boolean, label: string, onClick: () => void, icon: React.ReactNode }> = ({ active, label, onClick, icon }) => (
+  <button onClick={onClick} className={`flex-1 flex flex-col items-center gap-1 py-3.5 rounded-[2.2rem] transition-all ${active ? 'text-coffee-800 bg-coffee-100/50 shadow-inner' : 'text-coffee-300 opacity-70'}`}>
+    {icon}
     <span className="text-[8px] font-black uppercase tracking-widest">{label}</span>
   </button>
 );
