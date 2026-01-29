@@ -111,15 +111,12 @@ const AdminPanelScreen: React.FC<Props> = ({ state, updateParts, onAddUser, onDe
     } else {
       if (state.parts.length === 0) { alert("No data to share."); return; }
       
-      // Step 1: Send the notification message
-      const message = `Hello ${name},\n\nI am sharing the Master Data Excel file. Please accept the file incoming next.`;
-      shareToWhatsApp(message, phone);
+      const fileName = `Master_Data_${new Date().getTime()}`;
+      const shareText = `Hello ${name},\n\nI am sharing the Master Data Excel file. Please open and import this into the Tracker app.`;
       
-      // Step 2: Trigger the native share sheet for the file
-      // Wait a tiny bit to allow the whatsapp window to open first if browser allows
-      setTimeout(async () => {
-        await shareReportAsFile('excel', state.parts, `Master_Data_${new Date().getTime()}`);
-      }, 500);
+      // Use the unified share function which uses navigator.share
+      // This allows the user to pick WhatsApp AND send the actual file
+      await shareReportAsFile('excel', state.parts, fileName, undefined, shareText);
     }
   };
 

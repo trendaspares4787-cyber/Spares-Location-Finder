@@ -22,7 +22,7 @@ export const exportToPDF = (headers: string[], data: any[][], title: string, fil
   doc.save(`${fileName}.pdf`);
 };
 
-export const shareReportAsFile = async (type: 'excel' | 'pdf', data: any[], fileName: string, pdfConfig?: { headers: string[], body: any[][], title: string }) => {
+export const shareReportAsFile = async (type: 'excel' | 'pdf', data: any[], fileName: string, pdfConfig?: { headers: string[], body: any[][], title: string }, shareText?: string) => {
   try {
     let blob: Blob;
     let extension: string;
@@ -56,7 +56,7 @@ export const shareReportAsFile = async (type: 'excel' | 'pdf', data: any[], file
       await navigator.share({
         files: [file],
         title: 'Inventory Data',
-        text: `Inventory Report: ${fileName}`,
+        text: shareText || `Inventory Report: ${fileName}`,
       });
       return true;
     } else {

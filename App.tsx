@@ -14,6 +14,11 @@ const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<string>('login');
   const [prefilledPartNumber, setPrefilledPartNumber] = useState<string>('');
 
+  // EFFECT: PERSISTENCE - Save state whenever it changes
+  useEffect(() => {
+    saveState(state);
+  }, [state]);
+
   useEffect(() => {
     if (state.currentUser) {
       if (state.currentUser.role === UserRole.ADMIN && currentScreen === 'login') {
@@ -27,74 +32,47 @@ const App: React.FC = () => {
   }, [state.currentUser]);
 
   const handleLogin = useCallback((user: User, pass: string) => {
-    const updatedUsers = state.users.map(u => u.id === user.id ? { ...u, attempts: 0 } : u);
     setState(prev => {
-      const newState = { 
+      const updatedUsers = prev.users.map(u => u.id === user.id ? { ...u, attempts: 0 } : u);
+      return { 
         ...prev, 
         currentUser: user, 
         users: updatedUsers,
         lastCredentials: { userId: user.id, password: pass } 
       };
-      saveState(newState);
-      return newState;
     });
-  }, [state.users]);
+  }, []);
 
   const handleLogout = useCallback(() => {
-    setState(prev => {
-      const newState = { ...prev, currentUser: null };
-      saveState(newState);
-      return newState;
-    });
+    setState(prev => ({ ...prev, currentUser: null }));
     setCurrentScreen('login');
   }, []);
 
   const addLog = useCallback((log: Omit<AuditLog, 'id'>) => {
     const newLog: AuditLog = { ...log, id: Math.random().toString(36).substr(2, 9) };
-    setState(prev => {
-      const newState = { ...prev, logs: [newLog, ...prev.logs] };
-      saveState(newState);
-      return newState;
-    });
+    setState(prev => ({ ...prev, logs: [newLog, ...prev.logs] }));
   }, []);
 
   const updateParts = useCallback((parts: Part[], uploadTime: string) => {
-    setState(prev => {
-      const newState = { ...prev, parts, lastUploadInfo: uploadTime };
-      saveState(newState);
-      return newState;
-    });
+    setState(prev => ({ ...prev, parts, lastUploadInfo: uploadTime }));
   }, []);
 
   const importSyncData = useCallback((data: { parts?: Part[], users?: User[], logs?: AuditLog[], time?: string }) => {
-    setState(prev => {
-      const newState = { 
-        ...prev, 
-        parts: data.parts || prev.parts,
-        users: data.users || prev.users,
-        logs: data.logs ? [...data.logs, ...prev.logs] : prev.logs,
-        lastUploadInfo: data.time || prev.lastUploadInfo
-      };
-      saveState(newState);
-      return newState;
-    });
+    setState(prev => ({ 
+      ...prev, 
+      parts: data.parts || prev.parts,
+      users: data.users || prev.users,
+      logs: data.logs ? [...data.logs, ...prev.logs] : prev.logs,
+      lastUploadInfo: data.time || prev.lastUploadInfo
+    }));
   }, []);
 
-  // REFINED: Centralized User Management to ensure reliability
   const onAddUser = useCallback((newUser: User) => {
-    setState(prev => {
-      const newState = { ...prev, users: [...prev.users, newUser] };
-      saveState(newState);
-      return newState;
-    });
+    setState(prev => ({ ...prev, users: [...prev.users, newUser] }));
   }, []);
 
   const onDeleteUser = useCallback((userId: string) => {
-    setState(prev => {
-      const newState = { ...prev, users: prev.users.filter(u => u.id !== userId) };
-      saveState(newState);
-      return newState;
-    });
+    setState(prev => ({ ...prev, users: prev.users.filter(u => u.id !== userId) }));
   }, []);
 
   const updateProfile = useCallback((oldId: string, newId: string, newPass: string, phone?: string) => {
@@ -106,14 +84,12 @@ const App: React.FC = () => {
         ? { ...prev.currentUser, id: newId, name: newId, password: newPass, phone: phone || prev.currentUser.phone } 
         : prev.currentUser;
       
-      const newState = { 
+      return { 
         ...prev, 
         users: updatedUsers, 
         currentUser: updatedCurrentUser,
         lastCredentials: { userId: newId, password: newPass }
       };
-      saveState(newState);
-      return newState;
     });
   }, []);
 
@@ -146,11 +122,7 @@ const App: React.FC = () => {
             manualEntries={state.manualEntries} 
             addManualEntry={(e) => {
                const newEntry = { ...e, id: Math.random().toString(36).substr(2, 9) };
-               setState(prev => {
-                 const ns = { ...prev, manualEntries: [newEntry, ...prev.manualEntries] };
-                 saveState(ns);
-                 return ns;
-               });
+               setState(prev => ({ ...prev, manualEntries: [newEntry, ...prev.manualEntries] }));
             }} 
             initialPartNumber={prefilledPartNumber}
             onClearPrefill={() => setPrefilledPartNumber('')}
@@ -165,14 +137,10 @@ const App: React.FC = () => {
             updateParts={updateParts} 
             onAddUser={onAddUser}
             onDeleteUser={onDeleteUser}
-            onUpdateUsers={(u) => setState(p => { const ns = {...p, users: u}; saveState(ns); return ns; })}
+            onUpdateUsers={(u) => setState(p => ({...p, users: u}))}
             importSyncData={importSyncData}
             onClearLogs={() => {
-              setState(prev => {
-                const newState = { ...prev, logs: [], manualEntries: [] };
-                saveState(newState);
-                return newState;
-              });
+              setState(prev => ({ ...prev, logs: [], manualEntries: [] }));
             }}
           />
         ) : null;
