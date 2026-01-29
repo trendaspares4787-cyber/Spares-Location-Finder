@@ -13,16 +13,16 @@
           extend: {
             colors: {
               coffee: {
-                50: '#FFFEFB', // Ultra Bright Ivory
-                100: '#FAF8F2', // Crisp Cream
-                200: '#F5EFE6', // Light Latte
-                300: '#E8D5C4', // Soft Tan
-                400: '#A68A64', // Bronze Muted
-                500: '#936639', // Rich Coffee
-                600: '#7F5539', // Espresso
-                700: '#582F0E', // Deep Roasted
-                800: '#3D2009', // Darkest Bean
-                900: '#1F1105', // Onyx Coffee
+                50: '#FFFEFB',
+                100: '#FAF8F2',
+                200: '#F5EFE6',
+                300: '#E8D5C4',
+                400: '#A68A64',
+                500: '#936639',
+                600: '#7F5539',
+                700: '#582F0E',
+                800: '#3D2009',
+                900: '#1F1105',
               }
             }
           }
@@ -82,11 +82,13 @@
 <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@^19.2.3",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "xlsx": "https://esm.sh/xlsx@^0.18.5",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
     "jspdf": "https://esm.sh/jspdf@^4.0.0",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "xlsx": "https://esm.sh/xlsx@^0.18.5",
     "jspdf-autotable": "https://esm.sh/jspdf-autotable@^5.0.7"
   }
 }
@@ -94,6 +96,6 @@
 </head>
 <body class="antialiased">
     <div id="root"></div>
-    <script type="module" src="./index.tsx"></script>
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>
