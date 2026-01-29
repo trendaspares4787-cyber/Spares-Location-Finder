@@ -7,6 +7,7 @@ import TrackPartsScreen from './screens/TrackPartsScreen';
 import ReportsScreen from './screens/ReportsScreen';
 import ManualEntryScreen from './screens/ManualEntryScreen';
 import AdminPanelScreen from './screens/AdminPanelScreen';
+import ProfileScreen from './screens/ProfileScreen';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>(loadState());
@@ -16,15 +17,20 @@ const App: React.FC = () => {
   useEffect(() => {
     if (state.currentUser) {
       setCurrentScreen('track');
-    } else {
+    } else if (currentScreen !== 'login') {
       setCurrentScreen('login');
     }
   }, [state.currentUser]);
 
-  const handleLogin = useCallback((user: User) => {
+  const handleLogin = useCallback((user: User, pass: string) => {
     const updatedUsers = state.users.map(u => u.id === user.id ? { ...u, attempts: 0 } : u);
     setState(prev => {
-      const newState = { ...prev, currentUser: user, users: updatedUsers };
+      const newState = { 
+        ...prev, 
+        currentUser: user, 
+        users: updatedUsers,
+        lastCredentials: { userId: user.id, password: pass } 
+      };
       saveState(newState);
       return newState;
     });
@@ -73,6 +79,26 @@ const App: React.FC = () => {
     });
   }, []);
 
+  const updateProfile = useCallback((oldId: string, newId: string, newPass: string) => {
+    setState(prev => {
+      const updatedUsers = prev.users.map(u => 
+        u.id === oldId ? { ...u, id: newId, name: newId, password: newPass } : u
+      );
+      const updatedCurrentUser = prev.currentUser?.id === oldId 
+        ? { ...prev.currentUser, id: newId, name: newId, password: newPass } 
+        : prev.currentUser;
+      
+      const newState = { 
+        ...prev, 
+        users: updatedUsers, 
+        currentUser: updatedCurrentUser,
+        lastCredentials: { userId: newId, password: newPass }
+      };
+      saveState(newState);
+      return newState;
+    });
+  }, []);
+
   const navigateToManual = (partNumber?: string) => {
     if (partNumber) {
       setPrefilledPartNumber(partNumber);
@@ -85,7 +111,7 @@ const App: React.FC = () => {
   const renderScreen = () => {
     switch (currentScreen) {
       case 'login':
-        return <LoginScreen onLogin={handleLogin} users={state.users} updateUsers={updateUsers} />;
+        return <LoginScreen onLogin={handleLogin} users={state.users} updateUsers={updateUsers} lastCredentials={state.lastCredentials} />;
       case 'track':
         return (
           <TrackPartsScreen 
@@ -93,6 +119,7 @@ const App: React.FC = () => {
             parts={state.parts} 
             addLog={addLog} 
             onNavigateManual={navigateToManual} 
+            updateParts={updateParts}
           />
         );
       case 'reports':
@@ -105,6 +132,13 @@ const App: React.FC = () => {
             addManualEntry={addManualEntry} 
             initialPartNumber={prefilledPartNumber}
             onClearPrefill={() => setPrefilledPartNumber('')}
+          />
+        );
+      case 'profile':
+        return (
+          <ProfileScreen 
+            user={state.currentUser!} 
+            onUpdateProfile={updateProfile}
           />
         );
       case 'admin':
@@ -143,7 +177,7 @@ const App: React.FC = () => {
                <h1 className="text-lg font-black text-coffee-800 tracking-tighter">Tracker</h1>
             </div>
             <div className="flex items-center gap-3">
-              <div className="text-right">
+              <div className="text-right cursor-pointer" onClick={() => setCurrentScreen('profile')}>
                 <p className="text-[10px] font-black uppercase text-coffee-500 tracking-widest">{state.currentUser.role}</p>
                 <p className="text-sm font-bold text-coffee-900 leading-none mt-0.5">{state.currentUser.name}</p>
               </div>
@@ -166,6 +200,7 @@ const App: React.FC = () => {
           <NavItem active={currentScreen === 'track'} label="Track" onClick={() => setCurrentScreen('track')} icon={<SearchIcon />} color="coffee" />
           <NavItem active={currentScreen === 'reports'} label="History" onClick={() => setCurrentScreen('reports')} icon={<FileTextIcon />} color="coffee" />
           <NavItem active={currentScreen === 'manual'} label="Add" onClick={() => navigateToManual()} icon={<PlusIcon />} color="coffee" />
+          <NavItem active={currentScreen === 'profile'} label="Profile" onClick={() => setCurrentScreen('profile')} icon={<UserIcon />} color="coffee" />
           {state.currentUser.role === UserRole.ADMIN && (
             <NavItem active={currentScreen === 'admin'} label="Manage" onClick={() => setCurrentScreen('admin')} icon={<SettingsIcon />} color="coffee" />
           )}
@@ -190,6 +225,7 @@ const NavItem: React.FC<{ active: boolean, label: string, onClick: () => void, i
 const SearchIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>;
 const FileTextIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>;
 const PlusIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>;
+const UserIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>;
 const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>;
 
 export default App;

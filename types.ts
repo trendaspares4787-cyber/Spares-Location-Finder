@@ -54,4 +54,5 @@ export interface AppState {
   manualEntries: ManualEntry[];
   users: User[];
   lastUploadInfo: string | null;
+  lastCredentials?: { userId: string; password: string };
 }

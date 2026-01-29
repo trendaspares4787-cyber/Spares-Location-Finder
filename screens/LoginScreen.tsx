@@ -3,14 +3,15 @@ import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 
 interface Props {
-  onLogin: (user: User) => void;
+  onLogin: (user: User, pass: string) => void;
   users: User[];
   updateUsers: (users: User[]) => void;
+  lastCredentials?: { userId: string; password: string };
 }
 
-const LoginScreen: React.FC<Props> = ({ onLogin, users, updateUsers }) => {
-  const [userId, setUserId] = useState('');
-  const [password, setPassword] = useState('');
+const LoginScreen: React.FC<Props> = ({ onLogin, users, updateUsers, lastCredentials }) => {
+  const [userId, setUserId] = useState(lastCredentials?.userId || '');
+  const [password, setPassword] = useState(lastCredentials?.password || '');
   const [dateTime, setDateTime] = useState('');
   const [error, setError] = useState('');
 
@@ -44,7 +45,7 @@ const LoginScreen: React.FC<Props> = ({ onLogin, users, updateUsers }) => {
     }
 
     if (user.password === password) {
-      onLogin(user);
+      onLogin(user, password);
     } else {
       const updatedUsers = users.map(u => 
         u.id === user.id ? { ...u, attempts: (u.attempts || 0) + 1 } : u

@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import * as XLSX from 'xlsx';
 import { Part, User, AuditLog } from '../types';
 
 interface Props {
@@ -7,14 +8,16 @@ interface Props {
   parts: Part[];
   addLog: (log: Omit<AuditLog, 'id'>) => void;
   onNavigateManual: (partNumber?: string) => void;
+  updateParts: (parts: Part[], uploadTime: string) => void;
 }
 
-const TrackPartsScreen: React.FC<Props> = ({ currentUser, parts, addLog, onNavigateManual }) => {
+const TrackPartsScreen: React.FC<Props> = ({ currentUser, parts, addLog, onNavigateManual, updateParts }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [foundPart, setFoundPart] = useState<Part | null>(null);
   const [isVerified, setIsVerified] = useState(true);
   const [physicalQty, setPhysicalQty] = useState('');
   const [newLocation, setNewLocation] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
 
   // Instant lookup as user types
   useEffect(() => {
@@ -37,6 +40,56 @@ const TrackPartsScreen: React.FC<Props> = ({ currentUser, parts, addLog, onNavig
       setFoundPart(null);
     }
   }, [searchTerm, parts]);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = event.target?.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" }) as any[];
+
+        const mappedParts: Part[] = jsonData.map((row: any) => {
+          const cleanRow: any = {};
+          Object.keys(row).forEach(key => {
+            const cleanKey = key.toString().toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+            cleanRow[cleanKey] = row[key];
+          });
+
+          return {
+            partNumber: String(cleanRow['partnumber'] || cleanRow['partno'] || cleanRow['sku'] || '').trim(),
+            partName: String(cleanRow['partname'] || cleanRow['description'] || 'N/A').trim(),
+            onHand: parseFloat(String(cleanRow['onhand'] || cleanRow['stock'] || 0).replace(/,/g, '')) || 0,
+            onOrder: parseFloat(String(cleanRow['onorder'] || 0).replace(/,/g, '')) || 0,
+            dueInQty: parseFloat(String(cleanRow['dueinqty'] || 0).replace(/,/g, '')) || 0,
+            location: String(cleanRow['location'] || cleanRow['bin'] || 'N/A').trim(),
+            mav: parseFloat(String(cleanRow['mav'] || cleanRow['price'] || 0).replace(/,/g, '')) || 0,
+            amd3: parseFloat(String(cleanRow['amd3'] || 0).replace(/,/g, '')) || 0,
+            sysGenStock: parseFloat(String(cleanRow['sysgenstock'] || 0).replace(/,/g, '')) || 0,
+          };
+        }).filter(p => p.partNumber !== "");
+
+        if (mappedParts.length > 0) {
+          updateParts(mappedParts, new Date().toLocaleString());
+          alert(`SYNC COMPLETE: ${mappedParts.length} assets updated.`);
+        } else {
+          alert('Sync Failed: Check Excel headers.');
+        }
+      } catch (err) {
+        alert('File Error: Incompatible format.');
+      } finally {
+        setIsUploading(false);
+        e.target.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
 
   const handleSave = () => {
     if (!foundPart) return;
@@ -61,12 +114,21 @@ const TrackPartsScreen: React.FC<Props> = ({ currentUser, parts, addLog, onNavig
   };
 
   return (
-    <div className="p-6 space-y-10 animate-in fade-in duration-800">
-      <div className="space-y-2">
-        <h2 className="text-4xl font-extrabold text-coffee-900 tracking-tighter">Locate Part</h2>
-        <div className="flex items-center gap-2">
-           <div className="w-1.5 h-1.5 grad-primary rounded-full"></div>
-           <p className="text-[10px] text-coffee-600 font-black uppercase tracking-[0.2em]">Instant Enterprise Discovery</p>
+    <div className="p-6 space-y-10 animate-in fade-in duration-800 pb-20">
+      <div className="flex justify-between items-start">
+        <div className="space-y-2">
+          <h2 className="text-4xl font-extrabold text-coffee-900 tracking-tighter">Locate Part</h2>
+          <div className="flex items-center gap-2">
+             <div className="w-1.5 h-1.5 grad-primary rounded-full"></div>
+             <p className="text-[10px] text-coffee-600 font-black uppercase tracking-[0.2em]">Instant Enterprise Discovery</p>
+          </div>
+        </div>
+        <div className="relative">
+          <input type="file" accept=".xlsx,.xls" id="user-sync" className="hidden" onChange={handleFileUpload} disabled={isUploading} />
+          <label htmlFor="user-sync" className="flex items-center gap-2 px-4 py-2.5 bg-coffee-100 text-coffee-700 rounded-2xl text-[9px] font-black uppercase tracking-widest cursor-pointer shadow-sm active:scale-95 transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            {isUploading ? 'Syncing...' : 'Sync Data'}
+          </label>
         </div>
       </div>
 
