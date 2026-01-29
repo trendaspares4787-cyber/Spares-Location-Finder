@@ -99,20 +99,27 @@ const AdminPanelScreen: React.FC<Props> = ({ state, updateParts, onAddUser, onDe
     return token;
   };
 
-  const handleShareToUser = (type: 'token' | 'excel') => {
+  const handleShareToUser = async (type: 'token' | 'excel') => {
     const targetUser = state.users.find(u => u.id === targetUserId);
     const name = targetUser ? targetUser.name : "Team Member";
     const phone = targetUser?.phone;
     
     if (type === 'token') {
       const tokenToShare = syncToken || generateSyncToken();
-      const message = `Hello ${name},\n\nLatest Sync Token:\n${tokenToShare}`;
+      const message = `Hello ${name},\n\nLatest Master Sync Token for Tracker:\n\n${tokenToShare}`;
       shareToWhatsApp(message, phone);
     } else {
       if (state.parts.length === 0) { alert("No data to share."); return; }
-      const message = `Hello ${name},\n\nSending Excel Master Data.`;
+      
+      // Step 1: Send the notification message
+      const message = `Hello ${name},\n\nI am sharing the Master Data Excel file. Please accept the file incoming next.`;
       shareToWhatsApp(message, phone);
-      shareReportAsFile('excel', state.parts, `Master_Data_${name.replace(/\s/g, '_')}`);
+      
+      // Step 2: Trigger the native share sheet for the file
+      // Wait a tiny bit to allow the whatsapp window to open first if browser allows
+      setTimeout(async () => {
+        await shareReportAsFile('excel', state.parts, `Master_Data_${new Date().getTime()}`);
+      }, 500);
     }
   };
 
@@ -207,6 +214,7 @@ const AdminPanelScreen: React.FC<Props> = ({ state, updateParts, onAddUser, onDe
                    Token Share
                  </button>
                  <button onClick={() => handleShareToUser('excel')} className="flex-1 py-5 bg-emerald-600 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all flex flex-col items-center gap-2">
+                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mb-1"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
                    Excel Report
                  </button>
               </div>

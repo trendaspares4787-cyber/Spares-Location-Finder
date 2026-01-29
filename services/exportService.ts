@@ -35,7 +35,7 @@ export const shareReportAsFile = async (type: 'excel' | 'pdf', data: any[], file
       const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
       blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       extension = 'xlsx';
-      mimeType = blob.type;
+      mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     } else {
       const doc = new jsPDF();
       doc.text(pdfConfig?.title || 'Report', 14, 15);
@@ -47,7 +47,7 @@ export const shareReportAsFile = async (type: 'excel' | 'pdf', data: any[], file
       });
       blob = doc.output('blob');
       extension = 'pdf';
-      mimeType = blob.type;
+      mimeType = 'application/pdf';
     }
 
     const file = new File([blob], `${fileName}.${extension}`, { type: mimeType });
@@ -55,18 +55,21 @@ export const shareReportAsFile = async (type: 'excel' | 'pdf', data: any[], file
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       await navigator.share({
         files: [file],
-        title: 'Inventory Report',
-        text: 'Sharing the latest spare parts inventory report.',
+        title: 'Inventory Data',
+        text: `Inventory Report: ${fileName}`,
       });
+      return true;
     } else {
-      // Fallback: If cannot share (e.g., desktop browser), just download
+      // Fallback: Download
       if (type === 'excel') exportToExcel(data, fileName);
       else exportToPDF(pdfConfig!.headers, pdfConfig!.body, pdfConfig!.title, fileName);
-      alert('Sharing not supported on this browser. File has been downloaded instead.');
+      alert('Direct sharing not available on this browser. File has been downloaded.');
+      return false;
     }
   } catch (err) {
     console.error('Sharing failed', err);
-    alert('Failed to share file. Please try downloading instead.');
+    alert('Failed to share file. Please try downloading or using a different browser.');
+    return false;
   }
 };
 
