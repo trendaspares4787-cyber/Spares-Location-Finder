@@ -2,11 +2,11 @@
 import { AppState } from '../types';
 import { INITIAL_USERS } from '../constants';
 
-const STORAGE_KEY = 'spares_finder_v1_state';
+const STORAGE_KEY = 'spares_finder_v2_state';
 
 /**
  * Saves the full application state to local storage.
- * Using a direct write ensures the state managed by React is the single source of truth.
+ * Ensures data persists across browser restarts.
  */
 export const saveState = (state: AppState) => {
   try {
@@ -30,9 +30,15 @@ export const loadState = (): AppState => {
         manualEntries: [],
         users: INITIAL_USERS,
         lastUploadInfo: null,
+        lastCredentials: { userId: '', password: '' }
       };
     }
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+    // Ensure users list is never empty even if storage is corrupted
+    if (!parsed.users || parsed.users.length === 0) {
+      parsed.users = INITIAL_USERS;
+    }
+    return parsed;
   } catch (error) {
     console.error('Failed to load state from storage:', error);
     return {
@@ -42,6 +48,7 @@ export const loadState = (): AppState => {
       manualEntries: [],
       users: INITIAL_USERS,
       lastUploadInfo: null,
+      lastCredentials: { userId: '', password: '' }
     };
   }
 };

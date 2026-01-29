@@ -79,7 +79,7 @@ const TrackPartsScreen: React.FC<Props> = ({ currentUser, parts, addLog, onNavig
 
         if (mappedParts.length > 0) {
           updateParts(mappedParts, new Date().toLocaleString());
-          alert(`SYNC COMPLETE: ${mappedParts.length} assets updated.`);
+          alert(`DATABASE UPDATED: Record saved permanently on this device.`);
         } else {
           alert('Sync Failed: Check Excel headers.');
         }
@@ -98,7 +98,7 @@ const TrackPartsScreen: React.FC<Props> = ({ currentUser, parts, addLog, onNavig
       const decoded = JSON.parse(atob(tokenInput));
       if (decoded.parts && Array.isArray(decoded.parts)) {
         updateParts(decoded.parts, decoded.time || new Date().toLocaleString());
-        alert("DATABASE SYNCED SUCCESSFULLY!");
+        alert("TEAM DATA SYNCED: Master records updated locally.");
         setTokenInput('');
         setShowImport(false);
       } else {
@@ -138,32 +138,32 @@ const TrackPartsScreen: React.FC<Props> = ({ currentUser, parts, addLog, onNavig
           <h2 className="text-4xl font-extrabold text-coffee-900 tracking-tighter">Locate Part</h2>
           <div className="flex items-center gap-2">
              <div className="w-1.5 h-1.5 grad-primary rounded-full"></div>
-             <p className="text-[10px] text-coffee-600 font-black uppercase tracking-[0.2em]">Instant Enterprise Discovery</p>
+             <p className="text-[10px] text-coffee-600 font-black uppercase tracking-[0.2em]">Live Inventory Search</p>
           </div>
         </div>
         <div className="flex flex-col items-end gap-2">
           <div className="relative">
             <input type="file" accept=".xlsx,.xls" id="user-sync" className="hidden" onChange={handleFileUpload} disabled={isUploading} />
-            <label htmlFor="user-sync" className="flex items-center gap-2 px-4 py-2.5 bg-coffee-100 text-coffee-700 rounded-2xl text-[9px] font-black uppercase tracking-widest cursor-pointer shadow-sm active:scale-95 transition-all">
+            <label htmlFor="user-sync" className="flex items-center gap-2 px-4 py-2.5 bg-coffee-800 text-white rounded-2xl text-[9px] font-black uppercase tracking-widest cursor-pointer shadow-md active:scale-95 transition-all">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-              {isUploading ? 'Syncing...' : 'Sync Data'}
+              {isUploading ? 'Syncing...' : 'Upload File'}
             </label>
           </div>
           <button 
             onClick={() => setShowImport(!showImport)}
-            className="text-[8px] font-black uppercase tracking-widest text-coffee-400 bg-white/50 px-3 py-1 rounded-full border border-coffee-100"
+            className="text-[8px] font-black uppercase tracking-widest text-coffee-600 bg-coffee-100 px-4 py-2 rounded-full border border-coffee-200"
           >
-            {showImport ? 'Hide Import' : 'Import Shared Token'}
+            {showImport ? 'Close' : 'Import Team Sync'}
           </button>
         </div>
       </div>
 
       {showImport && (
-        <div className="animate-in slide-in-from-top-4 duration-500 premium-card p-8 rounded-[2.5rem] border-coffee-200 bg-coffee-50 space-y-5">
-           <p className="text-[10px] font-black text-coffee-500 uppercase tracking-widest">Master Database Import</p>
+        <div className="animate-in slide-in-from-top-4 duration-500 premium-card p-8 rounded-[2.5rem] border-coffee-200 bg-coffee-50 space-y-5 shadow-2xl">
+           <p className="text-[10px] font-black text-coffee-500 uppercase tracking-widest">Paste Sync Token from Admin</p>
            <textarea 
-             className="w-full h-24 p-5 rounded-3xl bg-white border border-coffee-100 outline-none text-[10px] font-mono focus:border-coffee-400 transition-all"
-             placeholder="Paste the shared sync token here..."
+             className="w-full h-24 p-5 rounded-3xl bg-white border border-coffee-100 outline-none text-[10px] font-mono focus:border-coffee-400 transition-all shadow-inner"
+             placeholder="Paste token here..."
              value={tokenInput}
              onChange={e => setTokenInput(e.target.value)}
            />
@@ -171,8 +171,20 @@ const TrackPartsScreen: React.FC<Props> = ({ currentUser, parts, addLog, onNavig
              onClick={handleTokenImport}
              className="w-full grad-royal text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg"
            >
-             Sync Shared Database
+             Sync Team Records
            </button>
+        </div>
+      )}
+
+      {parts.length === 0 && !showImport && (
+        <div className="bg-amber-50 p-8 rounded-[2.5rem] border border-amber-200 flex gap-5 animate-in slide-in-from-top-4">
+           <div className="w-12 h-12 bg-amber-500 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-lg">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+           </div>
+           <div className="space-y-1">
+              <p className="text-amber-900 font-black text-sm uppercase tracking-tight">Database Empty</p>
+              <p className="text-amber-800/70 text-[10px] font-bold leading-relaxed">Please upload an Excel file or use a Sync Token from your Admin to populate inventory.</p>
+           </div>
         </div>
       )}
 
@@ -182,7 +194,7 @@ const TrackPartsScreen: React.FC<Props> = ({ currentUser, parts, addLog, onNavig
           <input
             type="text"
             className="flex-1 px-8 py-5 rounded-[2.2rem] bg-coffee-50 border-none outline-none font-bold text-coffee-900 placeholder:text-coffee-200 premium-input text-lg"
-            placeholder="Type Part Number..."
+            placeholder="Search Part Number..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -191,18 +203,6 @@ const TrackPartsScreen: React.FC<Props> = ({ currentUser, parts, addLog, onNavig
           </div>
         </div>
       </div>
-
-      {!foundPart && searchTerm.trim() !== '' && (
-        <div className="text-center py-10 animate-in fade-in zoom-in-95 duration-500">
-          <p className="text-coffee-300 font-black uppercase tracking-widest text-[11px] mb-6">Asset Not Registered</p>
-          <button 
-            onClick={() => onNavigateManual(searchTerm)}
-            className="grad-warm text-white px-10 py-5 rounded-3xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl"
-          >
-            Create Manual Entry
-          </button>
-        </div>
-      )}
 
       {foundPart && (
         <div className="animate-in slide-in-from-bottom-16 duration-800">
@@ -213,9 +213,6 @@ const TrackPartsScreen: React.FC<Props> = ({ currentUser, parts, addLog, onNavig
                <span className="inline-flex px-5 py-2 bg-coffee-100 text-coffee-700 text-[10px] font-black uppercase tracking-[0.2em] rounded-full border border-coffee-200">System Record Match</span>
                <h3 className="text-4xl font-black text-coffee-900 leading-tight">{foundPart.partName}</h3>
                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-coffee-50 text-coffee-700 rounded-2xl shadow-sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"></path><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"></path><path d="M2 7h20"></path></svg>
-                  </div>
                   <span className="text-lg font-black text-coffee-600 uppercase tracking-tighter">PART NO: {foundPart.partNumber}</span>
                </div>
             </div>
@@ -226,22 +223,7 @@ const TrackPartsScreen: React.FC<Props> = ({ currentUser, parts, addLog, onNavig
               <StatItem label="DUE IN" value={foundPart.dueInQty.toString()} color="bg-coffee-50 text-coffee-700" dot="bg-coffee-300" />
               <StatItem label="ON ORDER" value={foundPart.onOrder.toString()} color="bg-coffee-50 text-coffee-700" dot="bg-coffee-300" />
               <StatItem label="AMD3" value={foundPart.amd3.toString()} color="bg-orange-50 text-orange-800" dot="bg-orange-400" />
-              <StatItem label="MAV" value={`₹${Number(foundPart.mav).toLocaleString()}`} color="bg-coffee-50 text-coffee-800" dot="bg-coffee-500" />
-              
-              <div className="col-span-2 grid grid-cols-2 gap-4 pt-4">
-                <StatItem 
-                  label="HAND + UPCOMING" 
-                  value={(foundPart.onHand + foundPart.dueInQty + foundPart.onOrder).toString()} 
-                  color="grad-warm text-white" 
-                  dot="bg-white" 
-                />
-                <StatItem 
-                  label="SYS GEN STOCK" 
-                  value={foundPart.sysGenStock.toString()} 
-                  color="grad-primary text-white" 
-                  dot="bg-white" 
-                />
-              </div>
+              <StatItem label="MAV" value={`₹${Number(foundPart.mav || 0).toLocaleString()}`} color="bg-coffee-50 text-coffee-800" dot="bg-coffee-500" />
             </div>
 
             <div className="pt-10 border-t border-coffee-50 space-y-10">
@@ -250,36 +232,34 @@ const TrackPartsScreen: React.FC<Props> = ({ currentUser, parts, addLog, onNavig
                 className={`w-full flex items-center justify-between p-7 rounded-[2.8rem] transition-all border-2 ${isVerified ? 'bg-coffee-100/50 border-coffee-200' : 'bg-orange-50 border-orange-200'} group relative overflow-hidden shadow-sm`}
               >
                 <div className="flex items-center gap-5 relative z-10">
-                  <div className={`w-12 h-12 rounded-[1.5rem] flex items-center justify-center shadow-lg transition-all ${isVerified ? 'bg-coffee-600 text-white shadow-coffee-200' : 'bg-orange-600 text-white shadow-orange-200'}`}>
+                  <div className={`w-12 h-12 rounded-[1.5rem] flex items-center justify-center shadow-lg transition-all ${isVerified ? 'bg-coffee-600 text-white' : 'bg-orange-600 text-white'}`}>
                     {isVerified ? <CheckIcon /> : <EditIcon />}
                   </div>
                   <div className="text-left">
                     <span className={`block text-sm font-black uppercase tracking-widest ${isVerified ? 'text-coffee-900' : 'text-orange-900'}`}>
                       {isVerified ? 'Verification OK' : 'Modify Records'}
                     </span>
-                    <span className="text-[10px] font-bold text-coffee-400 uppercase tracking-widest">System Record Status</span>
                   </div>
                 </div>
-                <div className={`w-3.5 h-3.5 rounded-full animate-ping ${isVerified ? 'bg-coffee-400' : 'bg-orange-400'}`}></div>
               </button>
 
               {!isVerified && (
                 <div className="space-y-6 p-10 grad-primary rounded-[3.5rem] shadow-2xl animate-in slide-in-from-top-10 duration-600">
                   <div className="space-y-3">
-                    <label className="block text-[10px] font-black text-coffee-100/80 uppercase tracking-[0.2em] ml-3">Physical Stock Count</label>
+                    <label className="block text-[10px] font-black text-coffee-100/80 uppercase tracking-[0.2em] ml-3">Physical Count</label>
                     <input
                       type="number"
-                      className="w-full px-8 py-6 rounded-[2rem] bg-white/10 border-2 border-white/20 outline-none font-bold text-white placeholder:text-white/30 focus:bg-white/15 transition-all text-2xl"
+                      className="w-full px-8 py-6 rounded-[2rem] bg-white/10 border-2 border-white/20 outline-none font-bold text-white placeholder:text-white/30 text-2xl"
                       placeholder="0"
                       value={physicalQty}
                       onChange={(e) => setPhysicalQty(e.target.value)}
                     />
                   </div>
                   <div className="space-y-3">
-                    <label className="block text-[10px] font-black text-coffee-100/80 uppercase tracking-[0.2em] ml-3">Current Location ID</label>
+                    <label className="block text-[10px] font-black text-coffee-100/80 uppercase tracking-[0.2em] ml-3">Current Area</label>
                     <input
                       type="text"
-                      className="w-full px-8 py-6 rounded-[2rem] bg-white/10 border-2 border-white/20 outline-none font-bold text-white placeholder:text-white/30 focus:bg-white/15 transition-all text-2xl"
+                      className="w-full px-8 py-6 rounded-[2rem] bg-white/10 border-2 border-white/20 outline-none font-bold text-white placeholder:text-white/30 text-2xl"
                       placeholder="Shelf / Bin ID"
                       value={newLocation}
                       onChange={(e) => setNewLocation(e.target.value)}
@@ -290,7 +270,7 @@ const TrackPartsScreen: React.FC<Props> = ({ currentUser, parts, addLog, onNavig
 
               <button
                 onClick={handleSave}
-                className={`w-full py-8 rounded-[2.8rem] font-black shadow-2xl transition-all uppercase tracking-[0.3em] text-[11px] ${isVerified ? 'grad-warm shadow-coffee-200' : 'grad-primary shadow-coffee-200'} text-white hover:translate-y-[-6px] active:scale-95`}
+                className={`w-full py-8 rounded-[2.8rem] font-black shadow-2xl transition-all uppercase tracking-[0.3em] text-[11px] ${isVerified ? 'grad-warm' : 'grad-primary'} text-white active:scale-95`}
               >
                 Submit Audit Entry
               </button>

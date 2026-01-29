@@ -14,6 +14,7 @@ const LoginScreen: React.FC<Props> = ({ onLogin, users, updateUsers, lastCredent
   const [password, setPassword] = useState(lastCredentials?.password || '');
   const [dateTime, setDateTime] = useState('');
   const [error, setError] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
 
   useEffect(() => {
     const updateTime = () => {
@@ -104,6 +105,16 @@ const LoginScreen: React.FC<Props> = ({ onLogin, users, updateUsers, lastCredent
               required
             />
           </div>
+          <div className="flex items-center gap-3 px-3">
+            <input 
+              type="checkbox" 
+              id="remember" 
+              checked={rememberMe} 
+              onChange={() => setRememberMe(!rememberMe)}
+              className="w-4 h-4 rounded border-coffee-200 text-coffee-600 focus:ring-coffee-500"
+            />
+            <label htmlFor="remember" className="text-[10px] font-black text-coffee-400 uppercase tracking-widest cursor-pointer">Remember My Identity</label>
+          </div>
         </div>
 
         {error && (
@@ -117,7 +128,7 @@ const LoginScreen: React.FC<Props> = ({ onLogin, users, updateUsers, lastCredent
           type="submit"
           className="w-full grad-primary text-white py-7 rounded-[2.5rem] font-black shadow-2xl shadow-coffee-200/40 hover:translate-y-[-4px] active:scale-95 transition-all uppercase tracking-[0.25em] text-xs mt-4"
         >
-          Log in
+          Sign In
         </button>
       </form>
 
