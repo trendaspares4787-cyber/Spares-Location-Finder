@@ -16,7 +16,11 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (state.currentUser) {
-      setCurrentScreen('track');
+      if (state.currentUser.role === UserRole.ADMIN && currentScreen === 'login') {
+        setCurrentScreen('admin');
+      } else if (currentScreen === 'login') {
+        setCurrentScreen('track');
+      }
     } else if (currentScreen !== 'login') {
       setCurrentScreen('login');
     }
@@ -76,21 +80,30 @@ const App: React.FC = () => {
     });
   }, []);
 
-  const updateUsers = useCallback((users: User[]) => {
+  // REFINED: Centralized User Management to ensure reliability
+  const onAddUser = useCallback((newUser: User) => {
     setState(prev => {
-      const newState = { ...prev, users };
+      const newState = { ...prev, users: [...prev.users, newUser] };
       saveState(newState);
       return newState;
     });
   }, []);
 
-  const updateProfile = useCallback((oldId: string, newId: string, newPass: string) => {
+  const onDeleteUser = useCallback((userId: string) => {
+    setState(prev => {
+      const newState = { ...prev, users: prev.users.filter(u => u.id !== userId) };
+      saveState(newState);
+      return newState;
+    });
+  }, []);
+
+  const updateProfile = useCallback((oldId: string, newId: string, newPass: string, phone?: string) => {
     setState(prev => {
       const updatedUsers = prev.users.map(u => 
-        u.id === oldId ? { ...u, id: newId, name: newId, password: newPass } : u
+        u.id === oldId ? { ...u, id: newId, name: newId, password: newPass, phone: phone || u.phone } : u
       );
       const updatedCurrentUser = prev.currentUser?.id === oldId 
-        ? { ...prev.currentUser, id: newId, name: newId, password: newPass } 
+        ? { ...prev.currentUser, id: newId, name: newId, password: newPass, phone: phone || prev.currentUser.phone } 
         : prev.currentUser;
       
       const newState = { 
@@ -112,7 +125,7 @@ const App: React.FC = () => {
   const renderScreen = () => {
     switch (currentScreen) {
       case 'login':
-        return <LoginScreen onLogin={handleLogin} users={state.users} updateUsers={updateUsers} lastCredentials={state.lastCredentials} />;
+        return <LoginScreen onLogin={handleLogin} users={state.users} updateUsers={(u) => setState(p => ({...p, users: u}))} lastCredentials={state.lastCredentials} />;
       case 'track':
         return (
           <TrackPartsScreen 
@@ -150,7 +163,9 @@ const App: React.FC = () => {
           <AdminPanelScreen 
             state={state} 
             updateParts={updateParts} 
-            updateUsers={updateUsers}
+            onAddUser={onAddUser}
+            onDeleteUser={onDeleteUser}
+            onUpdateUsers={(u) => setState(p => { const ns = {...p, users: u}; saveState(ns); return ns; })}
             importSyncData={importSyncData}
             onClearLogs={() => {
               setState(prev => {

@@ -2,22 +2,25 @@
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
 import { AppState, User, Part, UserRole } from '../types';
-import { shareToWhatsApp } from '../services/exportService';
+import { shareToWhatsApp, shareReportAsFile } from '../services/exportService';
 
 interface Props {
   state: AppState;
   updateParts: (parts: Part[], time: string) => void;
-  updateUsers: (users: User[]) => void;
+  onAddUser: (user: User) => void;
+  onDeleteUser: (userId: string) => void;
+  onUpdateUsers: (users: User[]) => void;
   importSyncData: (data: any) => void;
   onClearLogs: () => void;
 }
 
-const AdminPanelScreen: React.FC<Props> = ({ state, updateParts, updateUsers, importSyncData, onClearLogs }) => {
+const AdminPanelScreen: React.FC<Props> = ({ state, updateParts, onAddUser, onDeleteUser, onUpdateUsers, importSyncData, onClearLogs }) => {
   const [newUserId, setNewUserId] = useState('');
   const [newUserPass, setNewUserPass] = useState('');
+  const [newUserPhone, setNewUserPhone] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [syncToken, setSyncToken] = useState('');
-  const [workToken, setWorkToken] = useState('');
+  const [targetUserId, setTargetUserId] = useState('');
   
   const [resettingUser, setResettingUser] = useState<User | null>(null);
   const [resetPasswordValue, setResetPasswordValue] = useState('');
@@ -52,94 +55,176 @@ const AdminPanelScreen: React.FC<Props> = ({ state, updateParts, updateUsers, im
             sysGenStock: parseFloat(String(cleanRow['sysgenstock'] || 0).replace(/,/g, '')) || 0,
           };
         }).filter(p => p.partNumber !== "");
-        if (mappedParts.length > 0) { updateParts(mappedParts, new Date().toLocaleString()); alert(`DATABASE UPDATED`); }
+        if (mappedParts.length > 0) { 
+          updateParts(mappedParts, new Date().toLocaleString()); 
+          alert(`DATABASE UPDATED: ${mappedParts.length} items loaded.`); 
+        }
       } catch (err) { alert('Format Error.'); } finally { setIsUploading(false); }
     };
     reader.readAsBinaryString(file);
   };
 
-  const handleMergeToken = () => {
-    try {
-      const decoded = JSON.parse(atob(workToken));
-      if (decoded.logs) {
-        importSyncData(decoded);
-        alert(`SUCCESS: Reports merged from ${decoded.userName}.`);
-        setWorkToken('');
-      }
-    } catch (e) { alert("Invalid Token."); }
+  const handleAddUser = () => {
+    if (!newUserId || !newUserPass) {
+      alert("Employee ID and Passkey are required.");
+      return;
+    }
+    const exists = state.users.find(u => u.id.toLowerCase() === newUserId.toLowerCase());
+    if (exists) { alert("User already exists in the registry."); return; }
+    
+    onAddUser({ 
+      id: newUserId, 
+      name: newUserId, 
+      password: newUserPass, 
+      phone: newUserPhone,
+      role: UserRole.USER 
+    });
+    setNewUserId(''); setNewUserPass(''); setNewUserPhone('');
+    alert(`SUCCESS: Account for ${newUserId} provisioned.`);
+  };
+
+  const handleDeleteRequest = (userId: string) => {
+    if (userId === state.currentUser?.id) { 
+      alert("Protocol Error: You cannot delete your own session account."); 
+      return; 
+    }
+    if (window.confirm(`URGENT: Permanent removal of user [${userId}]? Access will be revoked immediately.`)) {
+      onDeleteUser(userId);
+    }
   };
 
   const generateSyncToken = () => {
     const token = btoa(JSON.stringify({ parts: state.parts, time: state.lastUploadInfo, users: state.users }));
     setSyncToken(token);
+    return token;
   };
 
-  const broadcastTokenToWhatsApp = () => {
-    if (!syncToken) return;
-    shareToWhatsApp(`🚨 *TEAM UPDATE* 🚨\nAdmin has sent the latest inventory list and user updates.\n\n*Token:* \n${syncToken}`);
+  const handleShareToUser = (type: 'token' | 'excel') => {
+    const targetUser = state.users.find(u => u.id === targetUserId);
+    const name = targetUser ? targetUser.name : "Team Member";
+    const phone = targetUser?.phone;
+    
+    if (type === 'token') {
+      const tokenToShare = syncToken || generateSyncToken();
+      const message = `Hello ${name},\n\nLatest Sync Token:\n${tokenToShare}`;
+      shareToWhatsApp(message, phone);
+    } else {
+      if (state.parts.length === 0) { alert("No data to share."); return; }
+      const message = `Hello ${name},\n\nSending Excel Master Data.`;
+      shareToWhatsApp(message, phone);
+      shareReportAsFile('excel', state.parts, `Master_Data_${name.replace(/\s/g, '_')}`);
+    }
   };
 
   const handleResetPassword = () => {
     if (!resettingUser || !resetPasswordValue) return;
-    updateUsers(state.users.map(u => u.id === resettingUser.id ? { ...u, password: resetPasswordValue, attempts: 0 } : u));
+    const updated = state.users.map(u => u.id === resettingUser.id ? { ...u, password: resetPasswordValue, attempts: 0 } : u);
+    onUpdateUsers(updated);
     setResettingUser(null); setResetPasswordValue('');
-    alert(`Password Updated for ${resettingUser.name}.`);
+    alert(`CREDENTIALS UPDATED for ${resettingUser.name}.`);
   };
 
   return (
     <div className="p-6 space-y-12 animate-in fade-in duration-800 pb-24">
       <div className="space-y-2">
         <h2 className="text-4xl font-black text-coffee-900 tracking-tighter">Manage</h2>
-        <p className="text-[10px] text-coffee-600 font-black uppercase tracking-[0.25em]">Admin Console</p>
+        <p className="text-[10px] text-coffee-600 font-black uppercase tracking-[0.25em]">System Administration</p>
       </div>
 
+      <section className="space-y-6">
+        <h3 className="text-[10px] font-black text-coffee-400 uppercase tracking-widest ml-5">Team Registry</h3>
+        <div className="premium-card p-10 rounded-[3.5rem] space-y-8 border-2 border-coffee-100/50 shadow-2xl bg-white">
+           <div className="grid grid-cols-1 gap-5">
+              <div className="space-y-2">
+                 <label className="text-[8px] font-black text-coffee-300 uppercase tracking-widest ml-3">Employee ID / Name</label>
+                 <input type="text" placeholder="e.g. John Doe" value={newUserId} onChange={e => setNewUserId(e.target.value)} className="w-full px-6 py-4 rounded-2xl bg-coffee-50 border border-coffee-100 outline-none font-bold text-coffee-900 focus:bg-white transition-all" />
+              </div>
+              <div className="space-y-2">
+                 <label className="text-[8px] font-black text-coffee-300 uppercase tracking-widest ml-3">Secure Passkey</label>
+                 <input type="text" placeholder="Initial Password" value={newUserPass} onChange={e => setNewUserPass(e.target.value)} className="w-full px-6 py-4 rounded-2xl bg-coffee-50 border border-coffee-100 outline-none font-bold text-coffee-900 focus:bg-white transition-all" />
+              </div>
+              <div className="space-y-2">
+                 <label className="text-[8px] font-black text-coffee-300 uppercase tracking-widest ml-3">WhatsApp Number</label>
+                 <input type="tel" placeholder="91..." value={newUserPhone} onChange={e => setNewUserPhone(e.target.value)} className="w-full px-6 py-4 rounded-2xl bg-coffee-50 border border-coffee-100 outline-none font-bold text-coffee-900 focus:bg-white transition-all" />
+              </div>
+              <button onClick={handleAddUser} className="w-full grad-primary text-white py-6 rounded-[2rem] font-black text-[10px] uppercase tracking-[0.3em] shadow-xl active:scale-95 transition-all mt-2">
+                Create User
+              </button>
+           </div>
+        </div>
+
+        <div className="premium-card p-10 rounded-[4rem] space-y-8 border border-coffee-50 shadow-xl bg-coffee-50/30">
+          <div className="flex justify-between items-center px-2">
+             <p className="text-[10px] font-black text-coffee-500 uppercase tracking-widest">Active Personnel</p>
+             <span className="px-3 py-1 bg-white rounded-full text-[9px] font-black text-coffee-900 shadow-sm">{state.users.length} Users</span>
+          </div>
+
+          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+            {state.users.map(u => (
+              <div key={u.id} className="flex justify-between items-center bg-white p-6 rounded-[2.5rem] border border-coffee-100/50 shadow-sm transition-all hover:border-coffee-200 group">
+                 <div className="flex items-center gap-5">
+                    <div className="w-12 h-12 rounded-[1.5rem] grad-royal flex items-center justify-center text-white font-black text-sm shadow-md">{u.name.charAt(0)}</div>
+                    <div>
+                       <div className="flex items-center gap-2">
+                          <p className="font-black text-coffee-900 text-sm leading-none">{u.name}</p>
+                          <span className={`text-[7px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${u.role === UserRole.ADMIN ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{u.role}</span>
+                       </div>
+                    </div>
+                 </div>
+                 <div className="flex gap-2">
+                    <button onClick={() => setResettingUser(u)} className="p-3 bg-coffee-50 text-coffee-400 rounded-2xl hover:bg-coffee-900 hover:text-white transition-all">
+                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteRequest(u.id)} 
+                      className={`p-3 rounded-2xl transition-all ${u.id === state.currentUser?.id ? 'bg-coffee-100 text-coffee-200 cursor-not-allowed' : 'bg-orange-50 text-orange-600 hover:bg-orange-600 hover:text-white shadow-sm'}`}
+                      disabled={u.id === state.currentUser?.id}
+                    >
+                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                 </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section className="space-y-5">
-        <h3 className="text-[10px] font-black text-coffee-400 uppercase tracking-widest ml-5">Master Broadcast</h3>
+        <h3 className="text-[10px] font-black text-coffee-400 uppercase tracking-widest ml-5">Distribution Hub</h3>
         <div className="premium-card p-10 rounded-[3.5rem] space-y-8 bg-coffee-900 text-white shadow-2xl relative overflow-hidden">
-           <p className="text-xl font-black relative z-10">Send Data to Team</p>
-           {!syncToken ? (
-             <button onClick={generateSyncToken} className="w-full py-6 bg-white/10 rounded-[2rem] font-black text-[10px] uppercase tracking-[0.3em]">Generate Master Token</button>
-           ) : (
-             <button onClick={broadcastTokenToWhatsApp} className="w-full py-6 bg-emerald-600 rounded-[2rem] font-black text-[10px] uppercase tracking-[0.3em]">WhatsApp Master Token</button>
-           )}
-        </div>
-      </section>
-
-      <section className="space-y-5">
-        <h3 className="text-[10px] font-black text-coffee-400 uppercase tracking-widest ml-5">Merge User Reports</h3>
-        <div className="premium-card p-10 rounded-[3.5rem] space-y-5 shadow-xl border border-coffee-100">
-           <p className="text-sm font-bold text-coffee-600">Paste a Work Token from a user to merge their audits into your master report.</p>
-           <textarea className="w-full h-24 p-5 rounded-3xl bg-coffee-50 border-none outline-none text-[10px] font-mono shadow-inner" placeholder="Paste Work Token..." value={workToken} onChange={e => setWorkToken(e.target.value)} />
-           <button onClick={handleMergeToken} className="w-full grad-royal text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg">Merge User Work</button>
-        </div>
-      </section>
-
-      <section className="space-y-5">
-        <h3 className="text-[10px] font-black text-coffee-400 uppercase tracking-widest ml-5">Team Credentials</h3>
-        <div className="premium-card p-10 rounded-[4rem] space-y-4 border border-coffee-100 shadow-2xl">
-          {state.users.map(u => (
-            <div key={u.id} className="flex justify-between items-center bg-white p-5 rounded-3xl border border-coffee-50 shadow-sm">
-               <div>
-                  <p className="font-black text-coffee-900 text-sm">{u.name}</p>
-                  <p className="text-[8px] font-black text-coffee-400 uppercase tracking-widest">{u.role}</p>
-               </div>
-               <button onClick={() => setResettingUser(u)} className="text-[9px] font-black text-coffee-600 bg-coffee-50 px-4 py-2 rounded-xl border border-coffee-100 uppercase tracking-widest">Reset Pass</button>
-            </div>
-          ))}
+           <div className="space-y-6 relative z-10">
+              <div className="space-y-3">
+                 <label className="text-[9px] font-bold text-white/50 uppercase tracking-widest block ml-2">Direct Target Device</label>
+                 <select value={targetUserId} onChange={(e) => setTargetUserId(e.target.value)} className="w-full bg-white/10 border border-white/20 rounded-[1.5rem] px-5 py-4 text-sm font-bold text-white outline-none appearance-none cursor-pointer">
+                    <option value="" className="text-coffee-900">Choose Recipient...</option>
+                    {state.users.map(u => (
+                       <option key={u.id} value={u.id} className="text-coffee-900">{u.name}</option>
+                    ))}
+                 </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                 <button onClick={() => handleShareToUser('token')} className="flex-1 py-5 bg-white/10 border border-white/20 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-all flex flex-col items-center gap-2">
+                   Token Share
+                 </button>
+                 <button onClick={() => handleShareToUser('excel')} className="flex-1 py-5 bg-emerald-600 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all flex flex-col items-center gap-2">
+                   Excel Report
+                 </button>
+              </div>
+           </div>
         </div>
       </section>
 
       {resettingUser && (
-        <div className="fixed inset-0 z-[100] bg-coffee-900/60 backdrop-blur-md flex items-center justify-center p-6">
-          <div className="w-full max-w-sm premium-card p-10 rounded-[3.5rem] border border-coffee-100 space-y-8 shadow-2xl">
+        <div className="fixed inset-0 z-[100] bg-coffee-900/60 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className="w-full max-sm premium-card p-10 rounded-[3.5rem] border border-coffee-100 space-y-8 shadow-2xl animate-in zoom-in-95 duration-300">
             <div className="text-center space-y-2">
-              <h4 className="text-2xl font-black text-coffee-900">New Passkey</h4>
-              <p className="text-sm font-bold text-coffee-600">Enter a new secure password for <span className="text-coffee-900">{resettingUser.name}</span></p>
+              <h4 className="text-2xl font-black text-coffee-900">Reset Credentials</h4>
+              <p className="text-sm font-bold text-coffee-600">User: <span className="text-coffee-900">{resettingUser.name}</span></p>
             </div>
-            <input type="text" className="w-full px-8 py-5 rounded-[2rem] bg-coffee-50 border-2 border-coffee-100 outline-none font-bold text-coffee-900 text-center text-xl" placeholder="Type Password Here" value={resetPasswordValue} onChange={(e) => setResetPasswordValue(e.target.value)} autoFocus />
+            <input type="text" className="w-full px-8 py-5 rounded-[2rem] bg-coffee-50 border-2 border-coffee-100 outline-none font-bold text-coffee-900 text-center text-xl" placeholder="New Passkey" value={resetPasswordValue} onChange={(e) => setResetPasswordValue(e.target.value)} autoFocus />
             <div className="flex gap-4">
-              <button onClick={handleResetPassword} className="flex-1 grad-primary text-white py-6 rounded-[2rem] font-black text-[10px] uppercase tracking-widest shadow-xl">Save Change</button>
-              <button onClick={() => setResettingUser(null)} className="px-8 bg-coffee-100 text-coffee-500 rounded-[2rem] font-black text-[10px] uppercase tracking-widest">Cancel</button>
+              <button onClick={handleResetPassword} className="flex-1 grad-primary text-white py-6 rounded-[2rem] font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all">Update</button>
+              <button onClick={() => setResettingUser(null)} className="px-8 bg-coffee-100 text-coffee-500 rounded-[2rem] font-black text-[10px] uppercase tracking-widest">Exit</button>
             </div>
           </div>
         </div>

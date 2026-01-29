@@ -10,6 +10,7 @@ export interface User {
   password: string;
   role: UserRole;
   attempts?: number;
+  phone?: string; // WhatsApp number for targeted sharing
 }
 
 export interface Part {

@@ -70,8 +70,14 @@ export const shareReportAsFile = async (type: 'excel' | 'pdf', data: any[], file
   }
 };
 
-export const shareToWhatsApp = (message: string) => {
-  const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+/**
+ * Opens WhatsApp. If phone is provided, targets that specific user.
+ */
+export const shareToWhatsApp = (message: string, phone?: string) => {
+  const cleanPhone = phone?.replace(/[^0-9]/g, '') || '';
+  const url = cleanPhone 
+    ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
+    : `https://wa.me/?text=${encodeURIComponent(message)}`;
   window.open(url, '_blank');
 };
 
