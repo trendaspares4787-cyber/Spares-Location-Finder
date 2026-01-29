@@ -1,59 +1,105 @@
 
-import React from 'react';
-import { AuditLog } from '../types';
+import React, { useMemo } from 'react';
+import { AuditLog, Part } from '../types';
 import { shareReportAsFile, printView } from '../services/exportService';
 
 interface Props {
   logs: AuditLog[];
+  parts: Part[];
 }
 
-const ReportsScreen: React.FC<Props> = ({ logs }) => {
-  const summary = {
-    total: logs.length,
-    qtyChanged: logs.filter(l => l.type === 'MODIFICATION' && l.physicalQty !== l.onHandQty).length,
-    locChanged: logs.filter(l => l.type === 'MODIFICATION' && l.newLocation !== l.currentLocation).length,
-  };
+const ReportsScreen: React.FC<Props> = ({ logs, parts }) => {
+  // Inventory Analytics
+  const analytics = useMemo(() => {
+    const totalAssetValue = parts.reduce((sum, p) => sum + (p.onHand * p.mav), 0);
+    const lowStockItems = parts.filter(p => p.onHand < p.amd3);
+    const zeroStockItems = parts.filter(p => p.onHand <= 0);
+    const pendingReplenishment = parts.filter(p => (p.onOrder + p.dueInQty) > 0);
+    const totalSKUs = parts.length;
+    
+    const activityTotal = logs.length;
+    const qtyDeltas = logs.filter(l => l.type === 'MODIFICATION' && l.physicalQty !== l.onHandQty).length;
+    const locShifts = logs.filter(l => l.type === 'MODIFICATION' && l.newLocation !== l.currentLocation).length;
+
+    return {
+      totalAssetValue,
+      lowStockItemsCount: lowStockItems.length,
+      zeroStockItemsCount: zeroStockItems.length,
+      pendingCount: pendingReplenishment.length,
+      totalSKUs,
+      activityTotal,
+      qtyDeltas,
+      locShifts
+    };
+  }, [parts, logs]);
 
   const handleShareExcel = () => {
-    shareReportAsFile('excel', logs, 'Activity_Log');
+    shareReportAsFile('excel', logs, 'Global_Inventory_Report');
   };
 
   const handleSharePDF = () => {
-    const headers = ["User", "Date", "Part", "Type", "Prev Qty", "New Qty"];
-    const body = logs.map(l => [l.userName, l.dateTime.split(',')[0], l.partNumber, l.type, l.onHandQty, l.physicalQty]);
-    shareReportAsFile('pdf', logs, 'Activity_Log', { headers, body, title: 'Inventory Audit Trail' });
+    const headers = ["User", "Date", "Part", "Type", "Status"];
+    const body = logs.map(l => [
+      l.userName, 
+      l.dateTime.split(',')[0], 
+      l.partNumber, 
+      l.type, 
+      l.physicalQty !== l.onHandQty ? 'Count Mismatch' : 'Verified'
+    ]);
+    shareReportAsFile('pdf', logs, 'Inventory_Audit_Report', { headers, body, title: 'Enterprise Inventory Insights' });
   };
 
   return (
-    <div className="p-6 space-y-10 animate-in fade-in duration-800">
+    <div className="p-6 space-y-10 animate-in fade-in duration-800 pb-28">
       <div className="space-y-2">
-        <h2 className="text-4xl font-extrabold text-coffee-900 tracking-tighter">Audit Trail</h2>
+        <h2 className="text-4xl font-extrabold text-coffee-900 tracking-tighter">Inventory Reports</h2>
         <div className="flex items-center gap-2">
            <div className="w-1.5 h-1.5 grad-royal rounded-full"></div>
-           <p className="text-[10px] text-coffee-600 font-black uppercase tracking-[0.2em]">Transaction Ledger History</p>
+           <p className="text-[10px] text-coffee-600 font-black uppercase tracking-[0.2em]">Enterprise Data Intelligence Dashboard</p>
         </div>
       </div>
 
+      {/* Primary Analytics Grid */}
       <div className="grid grid-cols-1 gap-5 no-print">
-        <div className="grad-primary p-10 rounded-[3.5rem] text-white shadow-2xl shadow-coffee-200 flex justify-between items-center group transition-all hover:scale-[1.02] border border-white/10">
-           <div>
-             <p className="text-[11px] font-black uppercase tracking-[0.25em] opacity-80 mb-3">System Interactions</p>
-             <p className="text-6xl font-black">{summary.total}</p>
+        <div className="grad-primary p-10 rounded-[3.5rem] text-white shadow-2xl shadow-coffee-200 flex justify-between items-center group transition-all hover:scale-[1.01] border border-white/10 relative overflow-hidden">
+           <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-bl-[100px]"></div>
+           <div className="relative z-10">
+             <p className="text-[11px] font-black uppercase tracking-[0.25em] opacity-80 mb-3">Total Asset Value</p>
+             <p className="text-5xl font-black">₹{analytics.totalAssetValue.toLocaleString()}</p>
+             <p className="text-[9px] font-bold uppercase tracking-widest mt-4 opacity-60">Calculated from {analytics.totalSKUs} SKUs</p>
            </div>
-           <div className="p-5 bg-white/15 rounded-[2rem] backdrop-blur-xl border border-white/10">
-             <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line></svg>
+           <div className="relative z-10 p-5 bg-white/15 rounded-[2rem] backdrop-blur-xl border border-white/10">
+             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
            </div>
         </div>
         
         <div className="grid grid-cols-2 gap-5">
-           <SummaryCard label="Qty Deltas" value={summary.qtyChanged} grad="grad-warm" />
-           <SummaryCard label="Bin Shifts" value={summary.locChanged} grad="grad-royal" />
+           <SummaryCard label="Low Stock" value={analytics.lowStockItemsCount} grad="grad-warm" icon="alert" />
+           <SummaryCard label="Zero Qty" value={analytics.zeroStockItemsCount} grad="grad-royal" icon="zero" />
+           <SummaryCard label="Replenishment" value={analytics.pendingCount} grad="grad-primary" icon="sync" />
+           <SummaryCard label="Total SKUs" value={analytics.totalSKUs} grad="bg-coffee-800" icon="box" />
         </div>
       </div>
 
+      {/* Operational Reports */}
+      <div className="space-y-6 no-print">
+         <h3 className="text-[10px] font-black text-coffee-400 uppercase tracking-widest ml-5">Operational Activity</h3>
+         <div className="grid grid-cols-2 gap-4">
+            <div className="bg-white p-7 rounded-[2.5rem] border border-coffee-100 shadow-sm">
+               <p className="text-[8px] font-black text-coffee-300 uppercase tracking-widest mb-1.5">User Verifications</p>
+               <p className="text-2xl font-black text-coffee-900">{analytics.activityTotal}</p>
+            </div>
+            <div className="bg-white p-7 rounded-[2.5rem] border border-coffee-100 shadow-sm">
+               <p className="text-[8px] font-black text-coffee-300 uppercase tracking-widest mb-1.5">Stock Variances</p>
+               <p className="text-2xl font-black text-orange-600">{analytics.qtyDeltas}</p>
+            </div>
+         </div>
+      </div>
+
+      {/* Recent Ledger Display */}
       <div className="premium-card rounded-[3.8rem] overflow-hidden border border-coffee-100 shadow-2xl">
         <div className="px-10 py-9 grad-primary text-white flex justify-between items-center">
-          <h3 className="text-[11px] font-black uppercase tracking-[0.3em]">Session Ledger</h3>
+          <h3 className="text-[11px] font-black uppercase tracking-[0.3em]">Activity Ledger</h3>
           <div className="px-5 py-2 bg-white/15 rounded-full backdrop-blur-xl text-[10px] font-black border border-white/10">{logs.length} Operations</div>
         </div>
         <div className="overflow-x-auto">
@@ -65,7 +111,7 @@ const ReportsScreen: React.FC<Props> = ({ logs }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-coffee-100/40">
-              {logs.map((log) => (
+              {logs.slice(0, 20).map((log) => (
                 <tr key={log.id} className="hover:bg-coffee-50 transition-all group">
                   <td className="px-10 py-7">
                     <div className="flex items-center gap-5">
@@ -86,7 +132,7 @@ const ReportsScreen: React.FC<Props> = ({ logs }) => {
               ))}
               {logs.length === 0 && (
                 <tr>
-                  <td colSpan={2} className="px-10 py-24 text-center text-coffee-200 font-black uppercase tracking-[0.3em] italic opacity-40">Database Clean</td>
+                  <td colSpan={2} className="px-10 py-24 text-center text-coffee-200 font-black uppercase tracking-[0.3em] italic opacity-40">Dashboard Empty</td>
                 </tr>
               )}
             </tbody>
@@ -94,20 +140,29 @@ const ReportsScreen: React.FC<Props> = ({ logs }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-5 no-print pb-20">
+      <div className="grid grid-cols-2 gap-5 no-print">
         <ActionButton onClick={handleShareExcel} label="Share Excel" grad="grad-warm" icon={<ExcelIcon />} />
         <ActionButton onClick={handleSharePDF} label="Share PDF" grad="grad-royal" icon={<PdfIcon />} />
-        <ActionButton onClick={printView} label="Print Ledger" grad="grad-primary" />
-        <p className="col-span-2 text-center text-[9px] font-bold text-coffee-300 uppercase tracking-widest mt-2">Reports can be shared directly as documents</p>
+        <ActionButton onClick={printView} label="Print Report" grad="grad-primary" />
+        <p className="col-span-2 text-center text-[9px] font-bold text-coffee-300 uppercase tracking-widest mt-2">Business intelligence generated from live terminal data</p>
       </div>
     </div>
   );
 };
 
-const SummaryCard: React.FC<{ label: string, value: number, grad: string }> = ({ label, value, grad }) => (
-  <div className={`${grad} p-8 rounded-[3rem] text-white shadow-xl flex flex-col justify-between transition-all hover:scale-[1.05] border border-white/10`}>
-    <p className="text-[9px] font-black uppercase tracking-[0.25em] opacity-80 mb-5">{label}</p>
-    <p className="text-4xl font-black">{value}</p>
+const SummaryCard: React.FC<{ label: string, value: number, grad: string, icon: string }> = ({ label, value, grad, icon }) => (
+  <div className={`${grad} p-7 rounded-[3rem] text-white shadow-xl flex flex-col justify-between transition-all hover:translate-y-[-5px] border border-white/10 relative overflow-hidden`}>
+    <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-white/10 rounded-full blur-xl"></div>
+    <p className="text-[9px] font-black uppercase tracking-[0.25em] opacity-80 mb-5 relative z-10">{label}</p>
+    <div className="flex items-end justify-between relative z-10">
+       <p className="text-4xl font-black">{value}</p>
+       <div className="opacity-40">
+          {icon === 'alert' && <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>}
+          {icon === 'box' && <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>}
+          {icon === 'sync' && <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>}
+          {icon === 'zero' && <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line></svg>}
+       </div>
+    </div>
   </div>
 );
 
